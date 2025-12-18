@@ -29,12 +29,6 @@ kubectl -n db port-forward svc/perkinzk-db-postgres-ha-primary 5432:5432
 psql "postgresql://perkinzk:PerkinzkSecure42@127.0.0.1:5432/postgres"
 ```
 
-## Credentials
-Credentials are stored in the secret `<release>-postgres-ha-credentials`:
-- Superuser: `perkinzk` / `PerkinzkSecure42`
-- Replication: `standby` / `StandbySecure42`
-- Patroni API: `patroni` / `PatroniAdmin42`
-
 Update these via `values.yaml` before installing in a real cluster.
 
 ## Zero-downtime config updates
