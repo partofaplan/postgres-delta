@@ -3,7 +3,7 @@ fullnameOverride: ""
 
 image:
   repository: ghcr.io/zalando/spilo-16
-  tag: 3.1-p2
+  tag: 3.3-p2
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
