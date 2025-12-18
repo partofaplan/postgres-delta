@@ -51,6 +51,26 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: init-permissions
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              mkdir -p /home/postgres/pgdata /run/postgresql /run/certs /run/tmp
+              chown -R 101:101 /home/postgres/pgdata /run /run/postgresql /run/certs /run/tmp
+              chmod 775 /run /run/postgresql /run/tmp /run/certs
+          volumeMounts:
+            - name: data
+              mountPath: /home/postgres/pgdata
+            - name: run
+              mountPath: /run
       containers:
         - name: postgres
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
