@@ -66,6 +66,7 @@ spec:
               mkdir -p /home/postgres/pgdata /run/postgresql /run/certs /run/tmp
               chown -R 101:101 /home/postgres/pgdata /run/postgresql /run/certs /run/tmp
               chmod 775 /run/postgresql /run/tmp /run/certs
+              rm -f /run/postgres.yml
           volumeMounts:
             - name: data
               mountPath: /home/postgres/pgdata
@@ -83,6 +84,63 @@ spec:
             - name: patroni
               containerPort: {{ .Values.patroni.restapi.port }}
           env:
+            - name: SCOPE
+              value: {{ include "postgres-ha.fullname" . }}
+            - name: DCS_ENABLE_KUBERNETES_API
+              value: "true"
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_LABELS
+              value: |
+                {"app.kubernetes.io/name": "{{ include "postgres-ha.name" . }}", "app.kubernetes.io/instance": "{{ .Release.Name }}", "cluster-name": "{{ include "postgres-ha.fullname" . }}"}
+            - name: KUBERNETES_SCOPE_LABEL
+              value: "cluster-name"
+            - name: KUBERNETES_ROLE_LABEL
+              value: "spilo-role"
+            - name: KUBERNETES_USE_ENDPOINTS
+              value: "true"
+            - name: SUPERUSER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: superuser-username
+            - name: SUPERUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: superuser-password
+            - name: PGUSER_SUPERUSER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: superuser-username
+            - name: PGPASSWORD_SUPERUSER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: superuser-password
+            - name: REPLICATION_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: replication-username
+            - name: REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: replication-password
+            - name: PGUSER_STANDBY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: replication-username
+            - name: PGPASSWORD_STANDBY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: replication-password
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -103,7 +161,7 @@ spec:
             - name: PATRONI_KUBERNETES_SCOPE_LABEL
               value: "cluster-name"
             - name: PATRONI_KUBERNETES_ROLE_LABEL
-              value: "role"
+              value: "spilo-role"
             - name: PATRONI_KUBERNETES_USE_ENDPOINTS
               value: "true"
             - name: PATRONI_POSTGRESQL_LISTEN

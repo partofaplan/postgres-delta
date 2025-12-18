@@ -35,7 +35,7 @@ spec:
   type: {{ .Values.service.primary.type }}
   selector:
     {{- include "postgres-ha.matchLabels" . | nindent 4 }}
-    role: master
+    spilo-role: master
   ports:
     - name: postgres
       port: {{ .Values.service.primary.port }}
@@ -58,7 +58,7 @@ spec:
   type: {{ .Values.service.replica.type }}
   selector:
     {{- include "postgres-ha.matchLabels" . | nindent 4 }}
-    role: replica
+    spilo-role: replica
   ports:
     - name: postgres
       port: {{ .Values.service.replica.port }}
