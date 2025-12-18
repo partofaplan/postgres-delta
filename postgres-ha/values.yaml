@@ -20,9 +20,9 @@ podAnnotations: {}
 podLabels: {}
 
 podSecurityContext:
-  fsGroup: 999
-  runAsUser: 999
-  runAsGroup: 999
+  runAsUser: 0
+  runAsGroup: 0
+  fsGroup: 0
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: false

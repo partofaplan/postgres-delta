@@ -143,6 +143,8 @@ spec:
               mountPath: /home/postgres/pgdata
             - name: dshm
               mountPath: /dev/shm
+            - name: run
+              mountPath: /run
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -171,6 +173,8 @@ spec:
         - name: dshm
           emptyDir:
             medium: Memory
+        - name: run
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data
