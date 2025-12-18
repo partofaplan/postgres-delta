@@ -1,0 +1,187 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "postgres-ha.fullname" . }}
+  labels:
+    {{- include "postgres-ha.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "postgres-ha.headlessServiceName" . }}
+  podManagementPolicy: Parallel
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "postgres-ha.matchLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "postgres-ha.matchLabels" . | nindent 8 }}
+        app.kubernetes.io/component: database
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "postgres-ha.serviceAccountName" . }}
+      terminationGracePeriodSeconds: 120
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if and .Values.affinity.enablePodAntiAffinity .Values.affinity.topologyKey }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "postgres-ha.matchLabels" . | nindent 20 }}
+                topologyKey: {{ .Values.affinity.topologyKey }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: postgres
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+            - name: patroni
+              containerPort: {{ .Values.patroni.restapi.port }}
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: PATRONI_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: PATRONI_SCOPE
+              value: {{ include "postgres-ha.fullname" . }}
+            - name: PATRONI_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PATRONI_KUBERNETES_LABELS
+              value: |
+                {"app.kubernetes.io/name": "{{ include "postgres-ha.name" . }}", "app.kubernetes.io/instance": "{{ .Release.Name }}", "cluster-name": "{{ include "postgres-ha.fullname" . }}"}
+            - name: PATRONI_KUBERNETES_SCOPE_LABEL
+              value: "cluster-name"
+            - name: PATRONI_KUBERNETES_ROLE_LABEL
+              value: "role"
+            - name: PATRONI_KUBERNETES_USE_ENDPOINTS
+              value: "true"
+            - name: PATRONI_POSTGRESQL_LISTEN
+              value: "0.0.0.0:5432"
+            - name: PATRONI_POSTGRESQL_CONNECT_ADDRESS
+              value: "$(POD_IP):5432"
+            - name: PATRONI_RESTAPI_LISTEN
+              value: "0.0.0.0:{{ .Values.patroni.restapi.port }}"
+            - name: PATRONI_RESTAPI_CONNECT_ADDRESS
+              value: "$(POD_IP):{{ .Values.patroni.restapi.port }}"
+            - name: PATRONI_RESTAPI_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: restapi-username
+            - name: PATRONI_RESTAPI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: restapi-password
+            - name: PATRONI_TTL
+              value: "{{ .Values.patroni.ttl }}"
+            - name: PATRONI_LOOP_WAIT
+              value: "{{ .Values.patroni.loopWait }}"
+            - name: PATRONI_RETRY_TIMEOUT
+              value: "{{ .Values.patroni.retryTimeout }}"
+            - name: PATRONI_MAXIMUM_LAG_ON_FAILOVER
+              value: "{{ .Values.patroni.maxLagOnFailover }}"
+            - name: PATRONI_SYNCHRONOUS_MODE
+              value: "{{ ternary "true" "false" .Values.patroni.synchronousMode }}"
+            - name: PATRONI_SUPERUSER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: superuser-username
+            - name: PATRONI_SUPERUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: superuser-password
+            - name: PATRONI_REPLICATION_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: replication-username
+            - name: PATRONI_REPLICATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: replication-password
+            - name: PATRONI_POSTGRESQL_PARAMETERS
+              value: {{ toJson .Values.patroni.postgresql.parameters | quote }}
+            - name: PATRONI_LOG_LEVEL
+              value: "INFO"
+          volumeMounts:
+            - name: data
+              mountPath: /home/postgres/pgdata
+            - name: dshm
+              mountPath: /dev/shm
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  curl -sf -u "${PATRONI_RESTAPI_USERNAME}:${PATRONI_RESTAPI_PASSWORD}" http://127.0.0.1:{{ .Values.patroni.restapi.port }}/health
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            periodSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  pg_isready -U "${PATRONI_SUPERUSER_USERNAME}" -h 127.0.0.1 -p 5432
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 5
+            failureThreshold: 6
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          {{- range .Values.storage.accessModes }}
+          - {{ . | quote }}
+          {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}
+        {{- if .Values.storage.storageClassName }}
+        storageClassName: {{ .Values.storage.storageClassName }}
+        {{- end }}

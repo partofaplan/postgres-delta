@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres-ha.headlessServiceName" . }}
+  labels:
+    {{- include "postgres-ha.labels" . | nindent 4 }}
+  {{- with .Values.service.headless.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    {{- include "postgres-ha.matchLabels" . | nindent 4 }}
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+    - name: patroni
+      port: {{ .Values.patroni.restapi.port }}
+      targetPort: {{ .Values.patroni.restapi.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres-ha.primaryServiceName" . }}
+  labels:
+    {{- include "postgres-ha.labels" . | nindent 4 }}
+  {{- with .Values.service.primary.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.primary.type }}
+  selector:
+    {{- include "postgres-ha.matchLabels" . | nindent 4 }}
+    role: master
+  ports:
+    - name: postgres
+      port: {{ .Values.service.primary.port }}
+      targetPort: 5432
+    - name: patroni
+      port: {{ .Values.patroni.restapi.port }}
+      targetPort: {{ .Values.patroni.restapi.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "postgres-ha.replicaServiceName" . }}
+  labels:
+    {{- include "postgres-ha.labels" . | nindent 4 }}
+  {{- with .Values.service.replica.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.replica.type }}
+  selector:
+    {{- include "postgres-ha.matchLabels" . | nindent 4 }}
+    role: replica
+  ports:
+    - name: postgres
+      port: {{ .Values.service.replica.port }}
+      targetPort: 5432
+    - name: patroni
+      port: {{ .Values.patroni.restapi.port }}
+      targetPort: {{ .Values.patroni.restapi.port }}

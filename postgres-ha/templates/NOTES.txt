@@ -1,0 +1,17 @@
+Primary service (read/write):
+  - {{ include "postgres-ha.primaryServiceName" . }}:{{ .Values.service.primary.port }}
+Replica service (read-only):
+  - {{ include "postgres-ha.replicaServiceName" . }}:{{ .Values.service.replica.port }}
+Patroni API (per-pod, for health/ops):
+  - Port {{ .Values.patroni.restapi.port }} on each pod and via the services above.
+
+Credentials are stored in the secret "{{ include "postgres-ha.fullname" . }}-credentials":
+  - Superuser: {{ .Values.credentials.superuser.username }}
+  - Replication: {{ .Values.credentials.replication.username }}
+  - Patroni API: {{ .Values.patroni.restapi.username }}
+
+Port-forward to the primary:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "postgres-ha.primaryServiceName" . }} 5432:5432
+
+Apply configuration changes without downtime by updating values (e.g. patroni.postgresql.parameters)
+and running `helm upgrade`; the post-upgrade job patches Patroni's dynamic config and issues a reload.

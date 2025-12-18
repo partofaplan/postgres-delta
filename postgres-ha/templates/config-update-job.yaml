@@ -1,0 +1,67 @@
+{{- if .Values.configUpdateJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "postgres-ha.fullname" . }}-apply-config
+  labels:
+    {{- include "postgres-ha.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.configUpdateJob.backoffLimit }}
+  {{- if .Values.configUpdateJob.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ .Values.configUpdateJob.ttlSecondsAfterFinished }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "postgres-ha.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "postgres-ha.serviceAccountName" . }}
+      restartPolicy: OnFailure
+      containers:
+        - name: apply-config
+          image: "{{ .Values.configUpdateJob.image.repository }}:{{ .Values.configUpdateJob.image.tag }}"
+          imagePullPolicy: {{ .Values.configUpdateJob.image.pullPolicy }}
+          env:
+            - name: CONFIG_PATH
+              value: /config/config.json
+            - name: REST_ENDPOINT
+              value: "http://{{ include "postgres-ha.primaryServiceName" . }}:{{ .Values.patroni.restapi.port }}/config"
+            - name: REST_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: restapi-username
+            - name: REST_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "postgres-ha.fullname" . }}-credentials
+                  key: restapi-password
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -euo pipefail
+              echo "Waiting for Patroni API to become reachable..."
+              for i in $(seq 1 60); do
+                if curl -sf -u "${REST_USER}:${REST_PASSWORD}" "http://{{ include "postgres-ha.primaryServiceName" . }}:{{ .Values.patroni.restapi.port }}/health"; then
+                  break
+                fi
+                sleep 5
+              done
+              echo "Patching dynamic configuration..."
+              curl -sf -u "${REST_USER}:${REST_PASSWORD}" -XPATCH -H "Content-Type: application/json" --data @"${CONFIG_PATH}" "${REST_ENDPOINT}"
+              echo "Configuration applied without restarting pods."
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "postgres-ha.fullname" . }}-dynamic-config
+            items:
+              - key: config.json
+                path: config.json
+{{- end }}

@@ -1,0 +1,114 @@
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/zalando/spilo-16
+  tag: 3.1-p2
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 3
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 999
+  runAsUser: 999
+  runAsGroup: 999
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+
+patroni:
+  scope: postgres-ha
+  namespace: /service/
+  ttl: 30
+  loopWait: 10
+  retryTimeout: 10
+  maxLagOnFailover: 1048576
+  synchronousMode: false
+  restapi:
+    port: 8008
+    username: patroni
+    password: PatroniAdmin42
+  initdb:
+    encoding: UTF8
+    locale: en_US.UTF-8
+    dataChecksums: true
+  postgresql:
+    parameters:
+      max_connections: 200
+      shared_buffers: 256MB
+      effective_cache_size: 512MB
+      maintenance_work_mem: 64MB
+      work_mem: 8MB
+      wal_level: replica
+      max_wal_senders: 10
+      max_replication_slots: 10
+      hot_standby: "on"
+      hot_standby_feedback: "on"
+      wal_compression: "on"
+      log_statement: none
+      log_min_duration_statement: 500
+
+credentials:
+  superuser:
+    username: perkinzk
+    password: PerkinzkSecure42
+  replication:
+    username: standby
+    password: StandbySecure42
+
+storage:
+  size: 10Gi
+  storageClassName: ""
+  accessModes:
+    - ReadWriteOnce
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+service:
+  primary:
+    type: ClusterIP
+    port: 5432
+    annotations: {}
+  replica:
+    type: ClusterIP
+    port: 5432
+    annotations: {}
+  headless:
+    annotations: {}
+
+pdb:
+  enabled: true
+  minAvailable: 2
+
+affinity:
+  enablePodAntiAffinity: true
+  topologyKey: kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []
+
+configUpdateJob:
+  enabled: true
+  image:
+    repository: curlimages/curl
+    tag: 8.5.0
+    pullPolicy: IfNotPresent
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300

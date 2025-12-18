@@ -1,0 +1,11 @@
+{{- $dynamic := dict "postgresql" (dict "parameters" .Values.patroni.postgresql.parameters) -}}
+{{- $_ := set $dynamic "synchronous_mode" .Values.patroni.synchronousMode -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "postgres-ha.fullname" . }}-dynamic-config
+  labels:
+    {{- include "postgres-ha.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {{- toJson $dynamic | nindent 4 }}
