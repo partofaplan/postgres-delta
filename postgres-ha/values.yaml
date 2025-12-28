@@ -61,7 +61,7 @@ patroni:
 
 credentials:
   superuser:
-    username: perkinzk
+    username: postgres
     password: PerkinzkSecure42
   replication:
     username: standby

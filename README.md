@@ -26,7 +26,7 @@ Key endpoints after install (with release name `perkinzk-db`):
 To connect locally:
 ```bash
 kubectl -n db port-forward svc/perkinzk-db-postgres-ha-primary 5432:5432
-psql "postgresql://perkinzk:PerkinzkSecure42@127.0.0.1:5432/postgres"
+psql "postgresql://postgres:PerkinzkSecure42@127.0.0.1:5432/postgres"
 ```
 
 Update these via `values.yaml` before installing in a real cluster.
