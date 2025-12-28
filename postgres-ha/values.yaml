@@ -29,7 +29,7 @@ securityContext:
 
 patroni:
   scope: postgres-ha
-  namespace: /service/
+  namespace: nexus
   ttl: 30
   loopWait: 10
   retryTimeout: 10
