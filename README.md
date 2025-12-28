@@ -15,17 +15,17 @@ Highly available PostgreSQL 16 powered by Patroni and the Spilo image. The chart
 kubectl create namespace db || true
 
 # install
-helm install perkinzk-db ./postgres-ha --namespace db
+helm install nexus-db ./postgres-ha --namespace db
 ```
 
-Key endpoints after install (with release name `perkinzk-db`):
-- Primary (read/write): `perkinzk-db-postgres-ha-primary:5432`
-- Replicas (read-only): `perkinzk-db-postgres-ha-replica:5432`
+Key endpoints after install (with release name `nexus-db`):
+- Primary (read/write): `nexus-db-postgres-ha-primary:5432`
+- Replicas (read-only): `nexus-db-postgres-ha-replica:5432`
 - Patroni API: port `8008` on each pod or via the services above
 
 To connect locally:
 ```bash
-kubectl -n db port-forward svc/perkinzk-db-postgres-ha-primary 5432:5432
+kubectl -n db port-forward svc/nexus-db-postgres-ha-primary 5432:5432
 psql "postgresql://postgres:PerkinzkSecure42@127.0.0.1:5432/postgres"
 ```
 
